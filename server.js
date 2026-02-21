@@ -16,7 +16,13 @@ const PORT = process.env.PORT || 3000;
 
 // ===== Google OAuth2 Setup =====
 const hasOAuth = process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET;
-const PUBLIC_URL = process.env.URL || process.env.PUBLIC_URL || `http://localhost:${PORT}`;
+// Render provides RENDER_EXTERNAL_URL by default
+const PUBLIC_URL = process.env.RENDER_EXTERNAL_URL || process.env.URL || process.env.PUBLIC_URL || `http://localhost:${PORT}`;
+
+// Check if cookies.txt exists for yt-dlp bot bypass
+const fs = require('fs');
+const COOKIES_PATH = path.join(__dirname, 'cookies.txt');
+const hasCookies = fs.existsSync(COOKIES_PATH);
 
 let oauth2Client;
 if (hasOAuth) {
@@ -26,9 +32,8 @@ if (hasOAuth) {
         `${PUBLIC_URL}/auth/google/callback`
     );
     console.log(`[Auth] Google OAuth2 configured with redirect: ${PUBLIC_URL}/auth/google/callback`);
-    console.log('[Auth] Google OAuth2 configured');
 } else {
-    console.log('[Auth] No Google credentials found — account features disabled');
+    console.log('[Auth] No Google credentials found — Using mock account logic');
 }
 
 // ===== Middleware =====
@@ -109,12 +114,20 @@ app.get('/api/stream', async (req, res) => {
 
         // Get formats using yt-dlp
         // Impersonate Android/Web clients to bypass "Sign in to confirm you're not a bot" on datacenter IPs
-        const info = await youtubedl(`https://www.youtube.com/watch?v=${id}`, {
+        const ytdlOptions = {
             dumpJson: true,
             noWarnings: true,
             noCheckCertificate: true,
             extractorArgs: 'youtube:player_client=android,web'
-        });
+        };
+
+        // Add cookies if available for bot bypass
+        if (hasCookies) {
+            ytdlOptions.cookies = COOKIES_PATH;
+            console.log('[Stream] Using cookies for bot bypass');
+        }
+
+        const info = await youtubedl(`https://www.youtube.com/watch?v=${id}`, ytdlOptions);
 
         const formats = info.formats || [];
         let format;

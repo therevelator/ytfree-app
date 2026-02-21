@@ -108,12 +108,12 @@ app.get('/api/stream', async (req, res) => {
         console.log(`[Stream] Proxying ${type} for ${id} via yt-dlp...`);
 
         // Get formats using yt-dlp
+        // Impersonate Android/Web clients to bypass "Sign in to confirm you're not a bot" on datacenter IPs
         const info = await youtubedl(`https://www.youtube.com/watch?v=${id}`, {
             dumpJson: true,
             noWarnings: true,
-            noCallHome: true,
             noCheckCertificate: true,
-            youtubeSkipDashManifest: true
+            extractorArgs: 'youtube:player_client=android,web'
         });
 
         const formats = info.formats || [];
